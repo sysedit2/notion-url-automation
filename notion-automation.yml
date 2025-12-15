@@ -1,0 +1,42 @@
+name: Notion URL Auto Analysis
+
+on:
+  schedule:
+    # 매일 한국시간 오후 12:50 (UTC 03:50)
+    - cron: '50 3 * * *'
+  workflow_dispatch:  # 수동 실행 가능
+
+jobs:
+  analyze-urls:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+    
+    - name: Run URL analysis
+      env:
+        NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+        NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        python notion_url_automation.py
+    
+    - name: Upload logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: analysis-logs-${{ github.run_number }}
+        path: |
+          *.log
+        retention-days: 7
