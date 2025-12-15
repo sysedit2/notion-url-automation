@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Notion URL 자동 분석 스크립트
+Notion URL 자동 분석 스크립트 (OpenAI API 버전)
 매일 자동으로 실행되어 Notion DB의 URL을 분석하고 업데이트합니다.
 """
 
@@ -15,7 +15,7 @@ import requests
 # 환경 변수에서 설정 가져오기
 NOTION_API_KEY = os.getenv('NOTION_API_KEY')
 NOTION_DATABASE_ID = os.getenv('NOTION_DATABASE_ID')
-ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 
 # Notion API 설정
 NOTION_VERSION = '2022-06-28'
@@ -110,14 +110,13 @@ class NotionURLManager:
 
 
 class URLAnalyzer:
-    """URL 분석 클래스"""
+    """URL 분석 클래스 (OpenAI API 사용)"""
     
     def __init__(self):
-        self.anthropic_url = 'https://api.anthropic.com/v1/messages'
+        self.openai_url = 'https://api.openai.com/v1/chat/completions'
         self.headers = {
             'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY,
-            'anthropic-version': '2023-06-01'
+            'Authorization': f'Bearer {OPENAI_API_KEY}'
         }
     
     def get_url_type(self, url: str) -> str:
@@ -132,7 +131,7 @@ class URLAnalyzer:
         return 'Article'
     
     def analyze_url(self, url: str) -> Dict[str, str]:
-        """AI를 사용하여 URL 분석"""
+        """OpenAI API를 사용하여 URL 분석"""
         content_type = self.get_url_type(url)
         
         prompt = f"""다음 URL을 분석하여 JSON 형식으로 응답해주세요. 
@@ -144,19 +143,24 @@ URL: {url}
 {{"title": "콘텐츠의 적절한 제목 (한국어, 50자 이내)", "category": "개발|디자인|마케팅|AI/ML|비즈니스|라이프스타일|기타 중 하나", "notes": "핵심 내용 요약 (2-3문장, 한국어, 150자 이내)"}}"""
 
         payload = {
-            "model": "claude-sonnet-4-20250514",
-            "max_tokens": 1000,
+            "model": "gpt-4o-mini",  # 가장 저렴한 모델
             "messages": [
+                {
+                    "role": "system",
+                    "content": "당신은 URL 콘텐츠를 분석하는 전문가입니다. 항상 순수한 JSON 형식으로만 응답하세요."
+                },
                 {
                     "role": "user",
                     "content": prompt
                 }
-            ]
+            ],
+            "temperature": 0.7,
+            "max_tokens": 500
         }
         
         try:
             response = requests.post(
-                self.anthropic_url,
+                self.openai_url,
                 headers=self.headers,
                 json=payload,
                 timeout=30
@@ -164,14 +168,10 @@ URL: {url}
             response.raise_for_status()
             data = response.json()
             
-            # AI 응답 추출
-            ai_response = ''
-            for item in data.get('content', []):
-                if item.get('type') == 'text':
-                    ai_response += item.get('text', '')
+            # OpenAI 응답 추출
+            ai_response = data['choices'][0]['message']['content'].strip()
             
             # JSON 파싱
-            ai_response = ai_response.strip()
             # 코드 블록 제거
             ai_response = ai_response.replace('```json', '').replace('```', '').strip()
             
@@ -205,18 +205,18 @@ URL: {url}
 def main():
     """메인 실행 함수"""
     print("=" * 60)
-    print("🚀 Notion URL 자동 분석 시작")
+    print("🚀 Notion URL 자동 분석 시작 (OpenAI GPT-4o-mini)")
     print("=" * 60)
     print(f"⏰ 실행 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
     
     # 환경 변수 확인
-    if not all([NOTION_API_KEY, NOTION_DATABASE_ID, ANTHROPIC_API_KEY]):
+    if not all([NOTION_API_KEY, NOTION_DATABASE_ID, OPENAI_API_KEY]):
         print("❌ 환경 변수가 설정되지 않았습니다!")
         print("필요한 환경 변수:")
         print("  - NOTION_API_KEY")
         print("  - NOTION_DATABASE_ID")
-        print("  - ANTHROPIC_API_KEY")
+        print("  - OPENAI_API_KEY")
         sys.exit(1)
     
     # 초기화
