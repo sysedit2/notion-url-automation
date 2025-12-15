@@ -232,6 +232,8 @@ def main():
         return
     
     print(f"📊 총 {len(unprocessed_pages)}개의 URL을 발견했습니다.")
+    print(f"⚡ 속도 제한: 분당 2개 처리 (각 URL 처리 후 30초 대기)")
+    print(f"⏱️ 예상 소요 시간: 약 {len(unprocessed_pages) * 0.5} 분")
     print()
     
     # 각 URL 분석 및 업데이트
@@ -266,9 +268,10 @@ def main():
             print(f"   ❌ 업데이트 실패")
             fail_count += 1
         
-        # API 속도 제한 방지
+        # API 속도 제한 방지 (분당 2개 = 30초 대기)
         if idx < len(unprocessed_pages):
-            time.sleep(1)
+            print(f"   ⏳ 다음 URL 처리까지 30초 대기 중...")
+            time.sleep(30)
     
     # 결과 요약
     print()
